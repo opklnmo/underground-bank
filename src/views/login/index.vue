@@ -1,9 +1,10 @@
 <template>
   <div class="login-container">
+    <img src="../../assets/used_images/北邮logo白色-去背景.png" class="small-image" alt="Small Image">
     <el-form ref="loginForm" :model="loginForm" :rules="loginRules" class="login-form" autocomplete="on" label-position="left">
 
       <div class="title-container">
-        <h3 class="title">Login Form</h3>
+        <h3 class="title">地下钱庄大数据智能分析系统</h3>
       </div>
 
       <el-form-item prop="username">
@@ -47,7 +48,7 @@
 
       <el-button :loading="loading" type="primary" style="width:100%;margin-bottom:30px;" @click.native.prevent="handleLogin">Login</el-button>
 
-      <div style="position:relative">
+      <!-- <div style="position:relative">
         <div class="tips">
           <span>Username : admin</span>
           <span>Password : any</span>
@@ -60,7 +61,7 @@
         <el-button class="thirdparty-button" type="primary" @click="showDialog=true">
           Or connect with
         </el-button>
-      </div>
+      </div> -->
     </el-form>
 
     <el-dialog title="Or connect with" :visible.sync="showDialog">
@@ -97,7 +98,7 @@ export default {
     }
     return {
       loginForm: {
-        username: 'admin',
+        username: 'editor',
         password: '111111'
       },
       loginRules: {
@@ -198,6 +199,9 @@ export default {
     // }
   }
 }
+
+// 导出 USER 作为常量
+export const USER = 'editor'
 </script>
 
 <style lang="scss">
@@ -253,6 +257,28 @@ $dark_gray:#889aa4;
 $light_gray:#eee;
 
 .login-container {
+  background-image: url('../../assets/used_images/background1.jpg'); /* 替换为你的图片路径 */
+  background-size: cover; /* 使背景图像覆盖整个容器 */
+  background-position: center; /* 将背景图像居中 */
+  background-repeat: no-repeat; /* 不重复 */
+  height: 100vh; /* 设置容器的高度 */
+  display: flex; /* 使用 Flexbox 使内容居中 */
+  align-items: center; /* 垂直居中 */
+  justify-content: center; /* 水平居中 */
+}
+
+.small-image {
+  position: absolute; /* 绝对定位 */
+  top: 10px; /* 距离上方的距离 */
+  left: 10px; /* 距离左侧的距离 */
+  width: 130px; /* 设置宽度 */
+  height: 130px; /* 高度自适应 */
+  opacity: 1; /* 设置透明度 */
+  z-index: 10; /* 确保小图在其它元素上方 */
+  transition: transform 0.3s; /* 添加过渡效果 */
+}
+
+.login-container {
   min-height: 100%;
   width: 100%;
   background-color: $bg;
@@ -262,7 +288,7 @@ $light_gray:#eee;
     position: relative;
     width: 520px;
     max-width: 100%;
-    padding: 160px 35px 0;
+    padding: 60px 35px 0;
     margin: 0 auto;
     overflow: hidden;
   }
