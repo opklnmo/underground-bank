@@ -27,8 +27,8 @@
       "
     />
 
-    <el-button type="primary" @click="applyWeights">应用权重</el-button>
-    <el-button type="info" @click="resetWeights">重置权重</el-button>
+    <el-button type="primary" :disabled="!value" @click="confirmSelection">确认</el-button>
+    <el-button type="info" :disabled="!value" @click="resetWeights">重置权重</el-button>
 
     <!-- 权重设置区域 -->
     <div class="weight-settings">
@@ -79,7 +79,10 @@
                 {{ Number(scope.row.fused_score).toFixed(3) }}
               </template>
             </el-table-column>
-            <el-table-column prop="count" label="命中标签数" />
+            <el-table-column prop="count" label="命中标签数">
+              <template #default="scope">{{ scope.row.count }}</template>
+            </el-table-column>
+
             <el-table-column prop="flag2" label="快进快出">
               <template #default="scope">
                 {{ scope.row.flag2 ? '是' : '否' }}
@@ -117,33 +120,62 @@
 
 <script>
 import axios from 'axios'
+import { mapState, mapActions } from 'vuex'
+
 export default {
   name: 'Demo',
   data() {
     return {
       options: [],
-      value: '',
       dateRange: [],
       username: null,
+      isBottom: false,
       weights: {
         flag2: 1,
         flag3: 1,
         flag4: 1,
         flag5: 1
       },
-      rankData: [],
-      isBottom: false,
       scrollContainer: null
+    }
+  },
+  computed: {
+    ...mapState({
+      rankData: state => state.rateGraph.rankData,
+      weights: state => state.rateGraph.weights,
+      dataLoaded: state => state.rateGraph.dataLoaded,
+      selectedTable: state => state.rateGraph.selectedTable
+    }),
+    value: {
+      get() {
+        return this.selectedTable
+      },
+      set(value) {
+        this.selectTable(value)
+      }
     }
   },
   mounted() {
     this.handleSearch()
-    this.generateRankData()
     this.scrollContainer = this.$refs.scrollContainer
+
+    // If we already have a selected table, update the dropdown
+    if (this.selectedTable) {
+      this.value = this.selectedTable
+    }
   },
   methods: {
+    ...mapActions({
+      updateRankData: 'rateGraph/updateRankData',
+      selectTable: 'rateGraph/selectTable',
+      updateWeights: 'rateGraph/updateWeights',
+      resetWeightsAction: 'rateGraph/resetWeights'
+    }),
     handleSelectChange(value) {
       console.log('选中的数据表:', value)
+      if (value) {
+        this.$message.info('已选择数据表，请点击「确认」按钮生成排行榜')
+      }
     },
     handleNameClick(name) {
       this.$router.push({
@@ -168,38 +200,46 @@ export default {
           this.$message.error('上传失败:', error)
         })
     },
-    async generateRankData(weights = null) {
+    async generateRankData(weights) {
       try {
         console.log(11)
         if (weights) {
           console.log('发送权重到后端:', weights)
           try {
-            const res = await axios.post('http://127.0.0.1:8000/tianye_demo', { weights })
+            const res = await axios.post('http://127.0.0.1:8000/tianye_demo',
+              { weights: [this.weights.flag2, this.weights.flag3, this.weights.flag4, this.weights.flag5] }, // 数据
+              { // 配置
+                headers: {
+                  'Content-Type': 'application/json'
+                }
+              })
             console.log('后端响应:', res)
-            this.rankData = res.data.data
+            console.log('后端', res.data.data)
+            this.updateRankData(res.data.data)
           } catch (postError) {
             const getRes = await axios.get('http://127.0.0.1:8000/tianye_demo')
-            this.rankData = getRes.data.data
-          }
-        } else {
-          console.log('默认')
-          try {
-            const res = await axios.get('http://127.0.0.1:8000/tianye_demo')
-            console.log('获取默认数据成功:', res)
-            this.rankData = res.data.data
-          } catch (error) {
-            console.error('请求失败详细信息:', error)
-            if (error.response) {
-              console.error('服务器响应:', error.response.status, error.response.data)
-            } else if (error.request) {
-              console.error('没有收到响应，请求详情:', error.request)
-            } else {
-              console.error('请求设置错误:', error.message)
-            }
-            this.$message.error('连接后端失败，请检查网络和服务器状态')
-            throw error
+            this.updateRankData(getRes.data)
           }
         }
+        // } else {
+        //   console.log('默认')
+        //   try {
+        //     const res = await axios.get('http://127.0.0.1:8000/tianye_demo')
+        //     console.log('获取默认数据成功:', res)
+        //     this.updateRankData(res.data.data)
+        //   } catch (error) {
+        //     console.error('请求失败详细信息:', error)
+        //     if (error.response) {
+        //       console.error('服务器响应:', error.response.status, error.response.data)
+        //     } else if (error.request) {
+        //       console.error('没有收到响应，请求详情:', error.request)
+        //     } else {
+        //       console.error('请求设置错误:', error.message)
+        //     }
+        //     this.$message.error('连接后端失败，请检查网络和服务器状态')
+        //     throw error
+        //   }
+        // }
         return Promise.resolve()
       } catch (error) {
         console.error('Error fetching rank data:', error)
@@ -207,31 +247,30 @@ export default {
         return Promise.reject(error)
       }
     },
-    applyWeights() {
+    confirmSelection() {
+      // Only fetch data if we haven't loaded it yet or if the user explicitly wants to refresh
       const loading = this.$loading({
         lock: true,
-        text: '正在应用权重设置...',
+        text: '正在处理数据...',
         spinner: 'el-icon-loading',
         background: 'rgba(255, 255, 255, 0.7)'
       })
 
+      // Update the weights in the store
+      this.updateWeights(this.weights)
+
       this.generateRankData(this.weights)
         .then(() => {
           loading.close()
-          this.$message.success('已成功应用新的权重设置')
+          this.$message.success('数据处理成功')
         })
         .catch(() => {
           loading.close()
         })
     },
     resetWeights() {
-      this.weights = {
-        flag2: 1,
-        flag3: 1,
-        flag4: 1,
-        flag5: 1
-      }
-      this.$message.info('已重置权重为默认值，点击「应用权重」按钮生效')
+      this.resetWeightsAction()
+      this.$message.info('已重置权重为默认值，点击「确认」按钮生效')
     },
     handleScroll({ scrollTop, scrollHeight, clientHeight }) {
       this.isBottom = scrollTop + clientHeight >= scrollHeight - 5
